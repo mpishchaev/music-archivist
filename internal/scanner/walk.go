@@ -2,6 +2,10 @@ package scanner
 
 import (
 	"context"
+	"fmt"
+	"io/fs"
+	"path"
+	"strings"
 )
 
 // Walk traverses the whole tree and sorts entries into MP3 files, skipped files and errors.
@@ -9,37 +13,64 @@ import (
 // It returns a non-nil error only when the walk as a whole must stop (ctx cancelled).
 // Problems with individual entries go into WalkResult.Errors instead.
 func (s *Scanner) Walk(ctx context.Context) (WalkResult, error) {
-	// TODO(you): implement with fs.WalkDir(s.fsys, ".", fn). Covered by TestWalk*.
-	//
-	// Rules:
-	//   1. Regular file with a .mp3 extension (any case) → Files; Size/ModTime come from d.Info().
-	//   2. Any other regular file → Skipped.
-	//   3. Hidden directory (name starts with ".") → don't descend: return fs.SkipDir.
-	//      Careful: the root itself is named "." and is NOT hidden.
-	//   4. Callback gets err != nil (unreadable entry) → append FileError{path, err}, keep walking.
-	//   5. ctx cancelled → abort and return an error that wraps ctx.Err().
-	//
-	// Hints:
-	//   - The callback type is fs.WalkDirFunc: func(path string, d fs.DirEntry, err error) error.
-	//     Returning a non-nil error aborts the walk. fs.SkipDir is a special sentinel
-	//     meaning "don't descend into this directory".
-	//   - For an unreadable directory WalkDir calls the callback TWICE: first with err == nil
-	//     (the entry itself), then again with the ReadDir error. When err != nil, d may be nil
-	//     (for the root), so check err before touching d.
-	//   - WalkDir visits entries in lexical order, so Files come out sorted for free.
-	//   - Checking ctx: `if err := ctx.Err(); err != nil { return err }` at the top of the callback.
-	//     WalkDir returns the callback's error unchanged, so wrap it once afterwards:
-	//     fmt.Errorf("walk: %w", err).
-	//   - LEARN: a closure can append to `res` declared outside of it. No ref/out params needed.
-	return WalkResult{}, errTODO
+	var res WalkResult
+
+	// LEARN: the callback is a closure: it appends to `res` from the enclosing function,
+	// no ref/out params needed. Its return value steers the walk: nil = continue,
+	// fs.SkipDir = don't descend, any other error = abort (WalkDir returns it unchanged).
+	err := fs.WalkDir(s.fsys, ".", func(p string, d fs.DirEntry, err error) error {
+		// 1. Cancellation first: a non-nil return aborts the whole walk.
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
+		// 2. Unreadable entry: record and keep walking. Don't touch d here, it may be nil.
+		// For an unreadable directory WalkDir calls us twice: first with err == nil, then
+		// with the ReadDir error, so each bad directory yields exactly one FileError.
+		if err != nil {
+			res.Errors = append(res.Errors, FileError{Path: p, Err: err})
+			return nil
+		}
+
+		// 3. Directories: skip hidden ones, but never the root ".".
+		if d.IsDir() {
+			if p != "." && strings.HasPrefix(d.Name(), ".") {
+				return fs.SkipDir
+			}
+			return nil
+		}
+
+		// 4. Only regular files from here on (ignore symlinks, devices...).
+		if !d.Type().IsRegular() {
+			return nil
+		}
+
+		// 5. Non-MP3 → Skipped.
+		if !isMP3(p) {
+			res.Skipped = append(res.Skipped, p)
+			return nil
+		}
+
+		// 6. MP3 → need size and mtime from Info(), which can fail.
+		info, err := d.Info()
+		if err != nil {
+			res.Errors = append(res.Errors, FileError{Path: p, Err: err})
+			return nil
+		}
+
+		res.Files = append(res.Files, File{Path: p, Size: info.Size(), ModTime: info.ModTime()})
+		return nil
+	})
+	if err != nil {
+		return WalkResult{}, fmt.Errorf("walk: %w", err)
+	}
+	return res, nil
 }
 
 // isMP3 reports whether name has a .mp3 extension, case-insensitively.
+//
+// LEARN: use package `path` (always '/') for fs.FS paths and `path/filepath`
+// (OS separator) for real OS paths. fs.FS paths are always slash-separated, even on Windows.
 func isMP3(name string) bool {
-	// TODO(you): covered by TestIsMP3. See path.Ext and strings.EqualFold.
-	//
-	// LEARN: use package `path` (always '/') for fs.FS paths and `path/filepath`
-	// (OS separator) for real OS paths. fs.FS paths are always slash-separated, even on Windows.
-	_ = name
-	return false
+	return strings.EqualFold(path.Ext(name), ".mp3")
 }

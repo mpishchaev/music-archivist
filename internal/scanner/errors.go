@@ -1,5 +1,9 @@
 package scanner
 
+import (
+	"fmt"
+)
+
 // FileError is a failure tied to one file or directory. Scanning continues past it;
 // all FileErrors end up in the final report.
 //
@@ -17,12 +21,10 @@ type FileError struct {
 
 // Error formats as "<path>: <cause>", e.g. "music/a.mp3: permission denied".
 func (e FileError) Error() string {
-	// TODO(you): covered by TestFileError. Hint: fmt.Sprintf or string concatenation.
-	return ""
+	return fmt.Sprintf("%s: %v", e.Path, e.Err)
 }
 
 // Unwrap returns the underlying cause so errors.Is(fe, fs.ErrPermission) works.
 func (e FileError) Unwrap() error {
-	// TODO(you): covered by TestFileError.
-	return nil
+	return e.Err
 }
