@@ -30,3 +30,11 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# music-archivist
+/bin/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+archivist.yaml

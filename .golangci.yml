@@ -1,0 +1,22 @@
+version: "2"
+
+linters:
+  default: standard # errcheck, govet, ineffassign, staticcheck, unused
+  enable:
+    - revive      # style (successor of golint)
+    - errorlint   # correct use of errors.Is/As and %w
+    - bodyclose   # forgotten http.Response.Body.Close()
+    - contextcheck
+    - gocritic
+    - misspell
+    - unconvert
+    - unparam
+
+formatters:
+  enable:
+    - gofumpt   # stricter gofmt
+    - goimports # import grouping: stdlib / third-party / local
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/mpishchaev/music-archivist
