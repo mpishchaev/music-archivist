@@ -15,7 +15,13 @@ import (
 	"github.com/mpishchaev/music-archivist/internal/cli"
 )
 
+// LEARN: the idiomatic "main is just os.Exit(run())" split. os.Exit terminates immediately
+// and skips deferred calls, so all defers live in run(), which returns normally.
 func main() {
+	os.Exit(run())
+}
+
+func run() int {
 	// LEARN: context.Context ~ CancellationToken, but it also carries deadlines and
 	// request-scoped values. NotifyContext cancels ctx on Ctrl+C / SIGTERM
 	// (roughly Console.CancelKeyPress + a CancellationTokenSource).
@@ -25,8 +31,7 @@ func main() {
 
 	if err := cli.NewRootCmd().ExecuteContext(ctx); err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
-		// LEARN: os.Exit skips deferred calls, so call stop() by hand before exiting.
-		stop()
-		os.Exit(1)
+		return 1
 	}
+	return 0
 }

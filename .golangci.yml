@@ -11,6 +11,11 @@ linters:
     - misspell
     - unconvert
     - unparam
+  settings:
+    errcheck:
+      exclude-functions:
+        - fmt.Fprintf   # writing a CLI report to stdout: nothing sensible to do on failure
+        - fmt.Fprintln
 
 formatters:
   enable:

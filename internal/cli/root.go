@@ -1,4 +1,6 @@
-// scaffold: cobra wiring. Commands stay thin: parse flags → build services → call them.
+// Package cli wires cobra commands. Commands stay thin: parse flags → build services → call them.
+//
+// scaffold: written by Claude; not a learning exercise.
 //
 // LEARN: `internal/` is enforced by the compiler: packages under it can be imported only
 // from within this module (like `internal` visibility at assembly level in C#).
@@ -45,7 +47,7 @@ func NewRootCmd() *cobra.Command {
 		Short:         "Scan, deduplicate and organize an MP3 collection",
 		SilenceUsage:  true, // don't dump usage on runtime errors
 		SilenceErrors: true, // main prints the error itself
-		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
 			logger, err := newLogger(opts.logLevel)
 			if err != nil {
 				return err
